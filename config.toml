@@ -1,0 +1,18 @@
+#[customizations.kernel]
+#append = "quiet crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M console=ttyS0,115200 console=tty0 efi=runtime ipv6.disable=1"
+
+# The disk has the following partition
+#
+# vg vg1  disk1.2
+# vg1-root    /          15G      ext4    noatime,rw
+# vg1-varlog  /var/log    5G      ext4    noatime,rw
+# vg1-swap    swap      500M      swap    sw
+#
+# For the moment, swap disk is not supported
+[[customizations.filesystem]]
+mountpoint = "/"
+minsize = "15 GiB"
+
+[[customizations.filesystem]]
+mountpoint = "/var/data"
+minsize = "5 GiB"
