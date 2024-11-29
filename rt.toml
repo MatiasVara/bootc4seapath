@@ -1,0 +1,1 @@
+kargs = ["quiet crashkernel=1G-4G:192M,4G-64G:256M,64G-:512M console=ttyS0,115200 console=tty0 efi=runtime ipv6.disable=1 efi=runtime fsck.mode=force fsck.repair=yes"]
