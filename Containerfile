@@ -48,6 +48,8 @@ RUN systemctl disable pacemaker
 
 RUN systemctl enable openvswitch
 
+RUN systemctl enable libvirtd.service
+
 ADD wheel-passwordless-sudo /etc/sudoers.d/wheel-passwordless-sudo
 ARG sshpubkey
 ARG adminuser
@@ -88,7 +90,9 @@ Gateway="$gateaddr" \n\
 DNS="$dnsaddr" \
 " > /etc/systemd/network/10-enp1s0.network
 
+# TODO: to check to do it in the ansible or here
 COPY resolv.conf /etc/resolv.conf
+
 COPY hostname /etc/hostname
 
 # use this instead of using config.toml for kernel parameters
@@ -145,6 +149,14 @@ RUN chmod +x /usr/local/bin/virt-df.sh
 COPY ./ansibleforbootc/src/debian/snmp/exposeseapathsnmp.pl /usr/local/bin/exposeseapathsnmp.pl
 # name: script run by cron job to generate snmp data
 COPY ../ansibleforbootc/src/debian/snmp/snmp_getdata.py /usr/local/sbin/snmp_getdata.py
+
+# add vhost_vsock to /etc/modules-load.d
+RUN echo "vhost_vsock" > /etc/modules-load.d/vhost_vsock.conf
+
+# add sriov driver to /etc/modules-load.d
+ARG sriov_driver
+RUN if [[ -x "$sriov_driver" ]] ; then echo "sriov_driver" > /etc/modules-load.d/sriov_driver.conf ; fi
+RUN if [[ -x "$sriov_driver" ]] ; then modprobe "$sriov_driver" ; fi
 
 RUN dnf -y install cronie
 
