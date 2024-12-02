@@ -46,22 +46,19 @@ RUN systemctl enable systemd-resolved
 RUN systemctl disable corosync 
 RUN systemctl disable pacemaker
 
-# At this point openvswitch is not installed
 RUN systemctl enable openvswitch
 
 ADD wheel-passwordless-sudo /etc/sudoers.d/wheel-passwordless-sudo
 ARG sshpubkey
+ARG adminuser
 
-# create virtu user
-# admin user is defined in the config.toml and is called alice for the moment
-# virtu is in this case the admin_user, there is always an admin_user that needs
-# to be configured
-# RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
-#    useradd -G wheel virtu && \
-#    mkdir -m 0700 -p /home/virtu/.ssh && \
-#    echo $sshpubkey > /home/virtu/.ssh/authorized_keys && \
-#    chmod 0600 /home/virtu/.ssh/authorized_keys && \
-#    chown -R virtu: /home/virtu
+# create the adminuser, which is used in the inventory too
+RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
+    useradd -G wheel "$adminuser" && \
+    mkdir -m 0700 -p /home/"$adminuser"/.ssh && \
+    echo $sshpubkey > /home/"$adminuser"/.ssh/authorized_keys && \
+    chmod 0600 /home/"$adminuser"/.ssh/authorized_keys && \
+    chown -R "$adminuser": /home/"$adminuser"
 
 # create ansible user
 RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
@@ -71,6 +68,7 @@ RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
     chmod 0600 /home/ansible/.ssh/authorized_keys && \
     chown -R ansible: /home/ansible
 
+# create Centos-snmp user
 RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
     useradd -G wheel Centos-snmp && \
     mkdir -m 0700 -p /home/Centos-snmp/.ssh && \
@@ -78,7 +76,7 @@ RUN if test -z "$sshpubkey"; then echo "must provide sshpubkey"; exit 1; fi; \
     chmod 0600 /home/Centos-snmp/.ssh/authorized_keys && \
     chown -R Centos-snmp: /home/Centos-snmp
 
-ARG ipaddr gateaddr dnsaddr adminuser chrony_wait_timeout_sec=180 pacemaker_shutdown_timeout=2min
+ARG ipaddr gateaddr dnsaddr chrony_wait_timeout_sec=180 pacemaker_shutdown_timeout=2min
 
 RUN echo -e "\
 [Match] \n\
@@ -96,6 +94,7 @@ COPY hostname /etc/hostname
 # use this instead of using config.toml for kernel parameters
 COPY rt.toml /usr/lib/bootc/kargs.d/rt.toml
 
+# generate seapath logo
 COPY motd.sh /etc/profile.d/motd.sh
 
 COPY ./ansibleforbootc/roles/debian_physical_machine/templates/consolevm.sh.j2 /usr/local/bin/consolevm
@@ -161,6 +160,9 @@ RUN git clone https://github.com/seapath/vm_manager.git /tmp/src/vm_manager && c
 
 # install python-ovs
 RUN git clone https://github.com/seapath/python3-setup-ovs.git /tmp/src/python3-setup-ovs && cd /tmp/src/python3-setup-ovs && /usr/bin/python3 setup.py install
+
+RUN systemctl enable docker.service
+RUN systemctl enable docker.socket
 
 RUN sed -i -e '/secure_path/ s[=.*[&:/usr/local/bin[' /etc/sudoers
 RUN echo "EDITOR=vim" >> /etc/environment && echo "SYSTEMD_EDITOR=vim" >> /etc/environment && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
