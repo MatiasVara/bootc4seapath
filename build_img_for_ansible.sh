@@ -1,1 +1,1 @@
-podman build -f ContainerfileAnsible -t ubuntu4seapath .
+podman build -f ContainerfileAnsible -t ubuntu4seapath
