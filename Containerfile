@@ -101,27 +101,27 @@ COPY rt.toml /usr/lib/bootc/kargs.d/rt.toml
 # generate seapath logo
 COPY motd.sh /etc/profile.d/motd.sh
 
-COPY ./ansibleforbootc/roles/debian_physical_machine/templates/consolevm.sh.j2 /usr/local/bin/consolevm
+COPY ./ansible/roles/debian_physical_machine/templates/consolevm.sh.j2 /usr/local/bin/consolevm
 RUN sed -i "s/{{ admin_user }}/"$adminuser"/g" /usr/local/bin/consolevm
 
-COPY ./ansibleforbootc/roles/centos_physical_machine/templates/chrony-wait.service.j2 /etc/systemd/system/chrony-wait.service
+COPY ./ansible/roles/centos_physical_machine/templates/chrony-wait.service.j2 /etc/systemd/system/chrony-wait.service
 RUN sed -i "/^TimeoutStartSec/c\TimeoutStartSec=$chrony_wait_timeout_sec" /etc/systemd/system/chrony-wait.service
 RUN systemctl enable chrony-wait
 
-COPY ./ansibleforbootc/roles/centos_physical_machine/templates/pacemaker_override.conf.j2 /etc/systemd/system/pacemaker.service.d/override.conf
+COPY ./ansible/roles/centos_physical_machine/templates/pacemaker_override.conf.j2 /etc/systemd/system/pacemaker.service.d/override.conf
 RUN sed -i "/^TimeoutStopSec/c\TimeoutStopSec=$pacemaker_shutdown_timeout" /etc/systemd/system/pacemaker.service.d/override.conf
 RUN systemctl enable pacemaker.service
 
 RUN mkdir -p /usr/lib/ocf/resource.d/seapath
-ADD ./ansibleforbootc/roles/centos_physical_machine/files/pacemaker_ra/ /usr/lib/ocf/resource.d/seapath/
+ADD ./ansible/roles/centos_physical_machine/files/pacemaker_ra/ /usr/lib/ocf/resource.d/seapath/
 
 # this is a parameter in the inventary with extra_kernel_modules
 COPY extra_modules.conf /etc/modules-load.d/extra_modules.conf
 
 # Add br_netfilter to /etc/modules-load.d
-COPY ./ansibleforbootc/roles/centos_physical_machine/files/modules/netfilter.conf /etc/modules-load.d/netfilter.conf
+COPY ./ansible/roles/centos_physical_machine/files/modules/netfilter.conf /etc/modules-load.d/netfilter.conf
 
-COPY ./ansibleforbootc/roles/centos_physical_machine/initramfs-tools/conf.d/rebooter.conf.j2 /etc/dracut.conf.d/rebooter.conf
+COPY ./ansible/roles/centos_physical_machine/initramfs-tools/conf.d/rebooter.conf.j2 /etc/dracut.conf.d/rebooter.conf
 #RUN dev="$(findmnt -n -o SOURCE --target /var/log)" \
 #    && rel="$(findmnt -n -o TARGET --target /var/log)" \
 #    && path="$(realpath --relative-to=$rel /var/log)" \   
@@ -129,7 +129,7 @@ COPY ./ansibleforbootc/roles/centos_physical_machine/initramfs-tools/conf.d/rebo
 RUN sed -i "s/{{ lvm_rebooter_log_device }}/\/dev\/sdb4[\/ostree\/deploy\/default\/var]/g" /etc/dracut.conf.d/rebooter.conf
 RUN sed -i "s/{{ lvm_rebooter_log_path }}/log/g" /etc/dracut.conf.d/rebooter.conf
 RUN echo "BUSYBOX=y" >> /etc/dracut.conf
-ADD ./ansibleforbootc/roles/centos_physical_machine/initramfs-tools/scripts /etc/initramfs-tools/scripts/
+ADD ./ansible/roles/centos_physical_machine/initramfs-tools/scripts /etc/initramfs-tools/scripts/
 
 # TODO: this is not working in the bootc container!
 # RUN /usr/bin/dracut --regenerate-all --force
@@ -141,14 +141,14 @@ COPY post-install.service /usr/lib/systemd/system/post-install.service
 RUN systemctl enable post-install
 
 # Synchronization of snmp_scripts
-COPY ./ansibleforbootc/src/debian/snmp/virt-df.sh /usr/local/bin/
+COPY ./ansible/src/debian/snmp/virt-df.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/virt-df.sh
 
 # TODO: add chmod +x
 # SNMP PASS AGENT script run by net-snmp for seapath tree
-COPY ./ansibleforbootc/src/debian/snmp/exposeseapathsnmp.pl /usr/local/bin/exposeseapathsnmp.pl
+COPY ./ansible/src/debian/snmp/exposeseapathsnmp.pl /usr/local/bin/exposeseapathsnmp.pl
 # name: script run by cron job to generate snmp data
-COPY ../ansibleforbootc/src/debian/snmp/snmp_getdata.py /usr/local/sbin/snmp_getdata.py
+COPY ../ansible/src/debian/snmp/snmp_getdata.py /usr/local/sbin/snmp_getdata.py
 
 # add vhost_vsock to /etc/modules-load.d
 RUN echo "vhost_vsock" > /etc/modules-load.d/vhost_vsock.conf
