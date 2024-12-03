@@ -1,0 +1,4 @@
+[submodule "ansible"]
+	path = ansible
+	url = https://github.com/MatiasVara/ansibleforbootc.git
+	branch = debiancentosforbootc
