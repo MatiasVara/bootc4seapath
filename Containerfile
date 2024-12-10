@@ -1,36 +1,34 @@
 FROM quay.io/centos-bootc/centos-bootc:stream9
 
-# this is a workaround for checksum not maching
-# RUN rm -rf /var/cache/yum/*
-
 RUN dnf config-manager --set-enabled crb highavailability nfv rt
 
 RUN dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 RUN dnf install -y epel-release centos-release-nfv-openvswitch centos-release-ceph-pacific
-RUN dnf install -y linux-firmware microcode_ctl at audispd-plugins audit bridge-utils ca-certificates chrony curl docker-ce docker-ce-cli containerd.io pcp-system-tools gnupg hddtemp irqbalance jq git autoconf automake make figlet firewalld openvswitch2.15
+RUN dnf install -y --nogpgcheck linux-firmware microcode_ctl at audispd-plugins audit bridge-utils ca-certificates chrony curl docker-ce docker-ce-cli containerd.io pcp-system-tools gnupg hddtemp irqbalance jq git autoconf automake make figlet firewalld openvswitch2.15
 
-RUN dnf install -y lbzip2 linuxptp net-tools openssh-server edk2-ovmf python3-dnf python3-cffi python3-setuptools 
+RUN dnf install -y lbzip2 linuxptp net-tools openssh-server edk2-ovmf python3-dnf python3-cffi python3-setuptools
 
-RUN dnf install -y sudo sysfsutils syslog-ng sysstat 
+RUN dnf install -y sudo sysfsutils syslog-ng sysstat
 
 RUN dnf install -y vim wget rsync pciutils conntrack-tools busybox python-gunicorn ipmitool nginx ntfs-3g python3-flask-wtf corosync pacemaker
 
-RUN dnf install -y qemu-kvm 
+RUN dnf install -y qemu-kvm
 RUN ln -s /usr/libexec/qemu-kvm /usr/bin/qemu-system-x86_64
 
 RUN rpm-ostree override remove kernel kernel-{core,modules,modules-core} \
       --install kernel-rt-core --install kernel-rt-modules \
-      --install kernel-rt-modules-extra --install kernel-rt-kvm 
+      --install kernel-rt-modules-extra --install kernel-rt-kvm
 
-RUN dnf install -y ceph ceph-base ceph-common ceph-mgr ceph-mgr-diskprediction-local ceph-mon ceph-osd 
+RUN dnf install -y ceph ceph-base ceph-common ceph-mgr ceph-mgr-diskprediction-local ceph-mon ceph-osd
 
-RUN dnf install -y libcephfs2 libvirt libvirt-daemon 
+RUN dnf install -y libcephfs2 libvirt libvirt-daemon
 
 RUN dnf install -y libvirt-daemon-driver-storage-rbd python3-ceph-argparse python3-cephfs tuna
 
 RUN dnf install -y tuned tuned-profiles-nfv tuned-profiles-realtime
+RUN systemctl enable tuned
 
-RUN dnf install -y virt-install 
+RUN dnf install -y virt-install
 
 # TODO: this may break the installation or not find the rootfs
 RUN dnf install -y pcs pcs-snmp
@@ -41,9 +39,9 @@ RUN systemctl enable systemd-networkd
 RUN systemctl enable systemd-resolved
 
 # TODO: this may break the installation or not find the rootfs
-# RUN dnf install -y net-snmp net-snmp-utils 
+# RUN dnf install -y net-snmp net-snmp-utils
 
-RUN systemctl disable corosync 
+RUN systemctl disable corosync
 RUN systemctl disable pacemaker
 
 RUN systemctl enable openvswitch
@@ -98,6 +96,14 @@ COPY hostname /etc/hostname
 # use this instead of using config.toml for kernel parameters
 COPY rt.toml /usr/lib/bootc/kargs.d/rt.toml
 
+# list of cores to be isolated
+# ARG RTCPU_LIST="1,2"
+ARG RTCPU_LIST=""
+
+# TODO: file is copied even when RTCPU_LIST is empty
+COPY tuned.conf.j2 /etc/tuned/seapath-rt-host/tuned.conf
+RUN if [[ -x "$RTCPU_LIST" ]] ; then sed -i "s/^isolated_cores.*/isolated_cores=${RTCPU_LIST}/" /etc/tuned/seapath-rt-host/tuned.conf ; fi
+
 # generate seapath logo
 COPY motd.sh /etc/profile.d/motd.sh
 
@@ -115,7 +121,7 @@ RUN systemctl enable pacemaker.service
 RUN mkdir -p /usr/lib/ocf/resource.d/seapath
 ADD ./ansible/roles/centos_physical_machine/files/pacemaker_ra/ /usr/lib/ocf/resource.d/seapath/
 
-# this is a parameter in the inventary with extra_kernel_modules
+# this is a parameter in the inventory with extra_kernel_modules
 COPY extra_modules.conf /etc/modules-load.d/extra_modules.conf
 
 # Add br_netfilter to /etc/modules-load.d
@@ -124,21 +130,28 @@ COPY ./ansible/roles/centos_physical_machine/files/modules/netfilter.conf /etc/m
 COPY ./ansible/roles/centos_physical_machine/initramfs-tools/conf.d/rebooter.conf.j2 /etc/dracut.conf.d/rebooter.conf
 #RUN dev="$(findmnt -n -o SOURCE --target /var/log)" \
 #    && rel="$(findmnt -n -o TARGET --target /var/log)" \
-#    && path="$(realpath --relative-to=$rel /var/log)" \   
+#    && path="$(realpath --relative-to=$rel /var/log)" \
 # TODO: these values have been hardcoded by using the commands above in a VM
 RUN sed -i "s/{{ lvm_rebooter_log_device }}/\/dev\/sdb4[\/ostree\/deploy\/default\/var]/g" /etc/dracut.conf.d/rebooter.conf
 RUN sed -i "s/{{ lvm_rebooter_log_path }}/log/g" /etc/dracut.conf.d/rebooter.conf
 RUN echo "BUSYBOX=y" >> /etc/dracut.conf
 ADD ./ansible/roles/centos_physical_machine/initramfs-tools/scripts /etc/initramfs-tools/scripts/
 
-# TODO: this is not working in the bootc container!
+# TODO: this is not working in the bootc container
 # RUN /usr/bin/dracut --regenerate-all --force
 
 # install a custom script that run during first boot and fix issue with firewall-cmd
-COPY custom-first-boot.sh /usr/local/sbin/custom-first-boot.sh 
-RUN chmod +x /usr/local/sbin/custom-first-boot.sh
-COPY post-install.service /usr/lib/systemd/system/post-install.service
-RUN systemctl enable post-install
+COPY fix-first-boot.sh /usr/local/sbin/fix-first-boot.sh
+RUN chmod +x /usr/local/sbin/fix-first-boot.sh
+COPY post-install-fix.service /usr/lib/systemd/system/post-fix-install.service
+RUN systemctl enable post-fix-install
+
+# install a custom script to set tuned
+# the service is enabled only if RTCPU_LIST is not empty
+COPY tuned-first-boot.sh /usr/local/sbin/tuned-first-boot.sh
+RUN chmod +x /usr/local/sbin/tuned-first-boot.sh
+COPY post-install-tuned.service /usr/lib/systemd/system/post-install-tuned.service
+RUN if [[ -x "$RTCPU_LIST" ]] ; then systemctl enable post-install-tuned ; fi
 
 # Synchronization of snmp_scripts
 COPY ./ansible/src/debian/snmp/virt-df.sh /usr/local/bin/

@@ -1,11 +1,12 @@
 [Unit]
 Description=Service to CentOS RT after installation of bootc
-Before=polkit.service
+Requires=tuned.service
+After=tuned.service
 ConditionPathExists=!/var/lib/rt-post-install-tuning.done
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/custom-first-boot.sh
+ExecStart=/usr/local/sbin/tuned-first-boot.sh
 ExecStartPost=/usr/bin/touch /var/lib/rt-post-install-tuning.done
 RemainAfterExit=yes
 
