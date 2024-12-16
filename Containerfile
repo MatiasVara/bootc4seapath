@@ -102,7 +102,7 @@ ARG RTCPU_LIST=""
 
 # TODO: file is copied even when RTCPU_LIST is empty
 COPY tuned.conf.j2 /etc/tuned/seapath-rt-host/tuned.conf
-RUN if [[ -x "$RTCPU_LIST" ]] ; then sed -i "s/^isolated_cores.*/isolated_cores=${RTCPU_LIST}/" /etc/tuned/seapath-rt-host/tuned.conf ; fi
+RUN if [[ -n "$RTCPU_LIST" ]] ; then sed -i "s/^isolated_cores.*/isolated_cores=${RTCPU_LIST}/" /etc/tuned/seapath-rt-host/tuned.conf ; fi
 
 # generate seapath logo
 COPY motd.sh /etc/profile.d/motd.sh
@@ -151,7 +151,7 @@ RUN systemctl enable post-fix-install
 COPY tuned-first-boot.sh /usr/local/sbin/tuned-first-boot.sh
 RUN chmod +x /usr/local/sbin/tuned-first-boot.sh
 COPY post-install-tuned.service /usr/lib/systemd/system/post-install-tuned.service
-RUN if [[ -x "$RTCPU_LIST" ]] ; then systemctl enable post-install-tuned ; fi
+RUN if [[ -n "$RTCPU_LIST" ]] ; then systemctl enable post-install-tuned ; fi
 
 # Synchronization of snmp_scripts
 COPY ./ansible/src/debian/snmp/virt-df.sh /usr/local/bin/
@@ -168,8 +168,8 @@ RUN echo "vhost_vsock" > /etc/modules-load.d/vhost_vsock.conf
 
 # add sriov driver to /etc/modules-load.d
 ARG sriov_driver
-RUN if [[ -x "$sriov_driver" ]] ; then echo "sriov_driver" > /etc/modules-load.d/sriov_driver.conf ; fi
-RUN if [[ -x "$sriov_driver" ]] ; then modprobe "$sriov_driver" ; fi
+RUN if [[ -n "$sriov_driver" ]] ; then echo "sriov_driver" > /etc/modules-load.d/sriov_driver.conf ; fi
+RUN if [[ -n "$sriov_driver" ]] ; then modprobe "$sriov_driver" ; fi
 
 RUN dnf -y install cronie
 
