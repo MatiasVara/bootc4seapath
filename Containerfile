@@ -2,9 +2,8 @@ FROM quay.io/centos-bootc/centos-bootc:stream9
 
 RUN dnf config-manager --set-enabled crb highavailability nfv rt
 
-RUN dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 RUN dnf install -y epel-release centos-release-nfv-openvswitch centos-release-ceph-pacific
-RUN dnf install -y --nogpgcheck linux-firmware microcode_ctl at audispd-plugins audit bridge-utils ca-certificates chrony curl docker-ce docker-ce-cli containerd.io pcp-system-tools gnupg hddtemp irqbalance jq git autoconf automake make figlet firewalld openvswitch2.15
+RUN dnf install -y --nogpgcheck linux-firmware microcode_ctl at audispd-plugins audit bridge-utils ca-certificates chrony curl pcp-system-tools gnupg hddtemp irqbalance jq git autoconf automake make figlet firewalld openvswitch2.15
 
 RUN dnf install -y lbzip2 linuxptp net-tools openssh-server edk2-ovmf python3-dnf python3-cffi python3-setuptools
 
@@ -185,9 +184,6 @@ RUN git clone https://github.com/seapath/vm_manager.git /tmp/src/vm_manager && c
 
 # install python-ovs
 RUN git clone https://github.com/seapath/python3-setup-ovs.git /tmp/src/python3-setup-ovs && cd /tmp/src/python3-setup-ovs && /usr/bin/python3 setup.py install
-
-RUN systemctl enable docker.service
-RUN systemctl enable docker.socket
 
 RUN sed -i -e '/secure_path/ s[=.*[&:/usr/local/bin[' /etc/sudoers
 RUN echo "EDITOR=vim" >> /etc/environment && echo "SYSTEMD_EDITOR=vim" >> /etc/environment && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
